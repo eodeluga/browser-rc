@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Program",
+      "program": "${workspaceFolder}/index.ts",
+      "args": ["url", "https://tesco.com"],
+      "request": "launch",
+      "type": "bun"
+    }
+  ]
+}

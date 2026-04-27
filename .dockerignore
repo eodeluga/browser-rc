@@ -1,0 +1,10 @@
+node_modules
+dist
+runs
+.agents
+.git
+.gitignore
+.env
+*.log
+playwright-report
+coverage

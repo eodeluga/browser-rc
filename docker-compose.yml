@@ -1,0 +1,30 @@
+services:
+  stagehand-runtime:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: my-stagehand-app
+    environment:
+      CHROME_PROFILE_DIRECTORY: ${CHROME_PROFILE_DIRECTORY:-Default}
+      CHROME_USER_DATA_DIR: /data/chrome-profile
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 3022
+      OUTPUT_BASE_DIR: /data/runs
+    expose:
+      - '3022'
+    networks:
+      - my-stagehand-app-access
+    ports:
+      - "${STAGEHAND_PORT:-3022}:3022"
+    restart: unless-stopped
+    shm_size: 1gb
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./data/docker/chrome-profile:/data/chrome-profile
+      - ./data/docker/runs:/data/runs
+
+networks:
+  my-stagehand-app-access:
+    name: my-stagehand-app-access
+    driver: bridge
