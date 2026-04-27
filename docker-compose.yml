@@ -5,40 +5,36 @@ services:
       dockerfile: Dockerfile
     container_name: browser-rc
     environment:
-      CHROME_PROFILE_DIRECTORY: ${CHROME_PROFILE_DIRECTORY:-Default}
-      CHROME_USER_DATA_DIR: /data/chrome-profile
-      HTTP_HOST: 0.0.0.0
-      HTTP_PORT: ${HTTP_PORT:-3001}
-      OUTPUT_BASE_DIR: /data/runs
+      HTTP_PORT: '${HTTP_PORT}'
     expose:
       - '${HTTP_PORT:-3001}'
     networks:
       - browser-rc-access
     ports:
-      - '${HTTP_PORT:-3001}:${HTTP_PORT:-3001}'
+      - '${HTTP_PORT:-3001}:3001'
     restart: unless-stopped
     shm_size: 1gb
     stdin_open: true
     tty: true
     volumes:
-      - ./data/docker/chrome-profile:/data/chrome-profile
+      - ${HOME}/.config/google-chrome:/home/node/.config/google-chrome
       - ./data/docker/runs:/data/runs
 
   swagger:
     container_name: browser-rc-swagger
+    environment:
+      DEFAULT_MODEL_RENDERING: model
+      SWAGGER_JSON: /openapi.yaml
     image: swaggerapi/swagger-ui
-    restart: unless-stopped
     networks:
       - browser-rc-access
     ports:
       - '8081:8080'
+    restart: unless-stopped
     volumes:
       - ./openapi/openapi.yaml:/openapi.yaml:ro
-    environment:
-      SWAGGER_JSON: /openapi.yaml
-      DEFAULT_MODEL_RENDERING: model
 
 networks:
   browser-rc-access:
-    name: browser-rc-access
     driver: bridge
+    name: browser-rc-access

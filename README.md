@@ -5,7 +5,7 @@ Local browser automation runtime using Playwright with a Fastify HTTP control pl
 ## Current scope
 
 This refactor now provides:
-- persistent Chrome profile reuse
+- persistent Chrome profile reuse (single user data directory, `Default` profile)
 - in-memory browser session registry
 - transport-agnostic runtime services for page and action operations
 - HTTP control endpoints for health, sessions, and jobs
@@ -19,14 +19,23 @@ This refactor now provides:
 ## Environment
 
 Copy `.env.example` to `.env` and adjust values if needed.
+The sample file is intentionally minimal for Docker usage; additional runtime variables are optional.
 
-Important variables:
-- `CHROME_EXECUTABLE_PATH` (optional; leave unset to use Playwright bundled Chromium)
-- `CHROME_USER_DATA_DIR`
-- `CHROME_PROFILE_DIRECTORY`
-- `HTTP_HOST`
-- `HTTP_PORT`
-- `OUTPUT_BASE_DIR`
+Runtime variables used by code (local defaults):
+- `CHROME_EXECUTABLE_PATH` (optional; default unset)
+- `CHROME_USER_DATA_DIR` (default: `${HOME}/.config/google-chrome`)
+- `HTTP_HOST` (default: `127.0.0.1`)
+- `HTTP_PORT` (default: `3001`)
+- `OUTPUT_BASE_DIR` (default: `./runs`)
+
+Container defaults (defined in `Dockerfile`):
+- `CHROME_USER_DATA_DIR=/home/node/.config/google-chrome`
+- `HTTP_HOST=0.0.0.0`
+- `HTTP_PORT=3001`
+- `OUTPUT_BASE_DIR=/data/runs`
+
+Compose overrides:
+- `HTTP_PORT` sets host published port with `"${HTTP_PORT:-3001}:3001"`
 
 ## Run
 
@@ -49,10 +58,10 @@ This exposes the runtime on:
 - Swagger UI at `http://localhost:8081`
 
 Notes:
-- the container binds the service to `0.0.0.0`
+- the container binds the service to `0.0.0.0` via Dockerfile defaults
 - browser launches in headed mode through `Xvfb` (virtual display)
-- Chrome profile data persists under `./data/docker/chrome-profile`
-- run artefacts persist under `./data/docker/runs`
+- host Chrome data is mounted from `${HOME}/.config/google-chrome` to `/home/node/.config/google-chrome`
+- run artefacts persist under `./data/docker/runs` mounted to `/data/runs`
 - Swagger UI reads the spec from `./openapi/openapi.yaml`
 - this is intentionally unauthenticated for local PoC use
 
@@ -116,6 +125,6 @@ Emitted events:
 
 ## Notes
 
-- The runtime launches Chrome with a persistent Playwright context using the configured user data and profile directories.
+- The runtime launches Chrome with a persistent Playwright context using the configured user data directory and `Default` profile.
 - Session and action logic is shared across HTTP and WebSocket transports.
 - Job execution writes debuggable run artefacts including request/result payloads, logs, HTML dump, screenshot files, and Playwright trace output.

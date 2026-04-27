@@ -14,11 +14,7 @@ RUN bun run build
 
 ENV NODE_ENV="production"
 ENV HTTP_HOST="0.0.0.0"
-ENV HTTP_PORT="3001"
 ENV OUTPUT_BASE_DIR="/data/runs"
-ENV CHROME_USER_DATA_DIR="/data/chrome-profile"
-ENV CHROME_PROFILE_DIRECTORY="Default"
-
-EXPOSE 3001
+ENV CHROME_USER_DATA_DIR="/home/node/.config/google-chrome"
 
 CMD ["bash", "-lc", "Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp & export DISPLAY=:99 && exec bun dist/src/index.js"]
