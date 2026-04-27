@@ -80,16 +80,19 @@ class BrowserManagerService {
     return await this.runWithProfileLockCleanupInternal(async () => {
       const managedSession = this.getManagedSession(sessionId)
 
-      if (!managedSession) {
-        return null
-      }
-
       if (this.traceSessionId === sessionId) {
         this.traceSessionId = null
       }
 
-      await managedSession.page.close()
-      this.managedSessions.delete(sessionId)
+      if (managedSession) {
+        try {
+          await managedSession.page.close()
+        } catch (error: unknown) {
+          console.error('Failed to close browser page for session ' + sessionId, error)
+        }
+
+        this.managedSessions.delete(sessionId)
+      }
 
       return this.sessionRegistryService.markClosed(sessionId)
     })

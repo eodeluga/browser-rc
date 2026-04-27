@@ -55,16 +55,16 @@ class SessionRegistryService {
       return null
     }
 
-    const updatedSession: Session = {
+    const closedSession: Session = {
       ...existingSession,
       attachedClientId: null,
       lastActivityAt: new Date().toISOString(),
       status: 'closed',
     }
 
-    this.sessions.set(sessionId, updatedSession)
+    this.sessions.delete(sessionId)
 
-    return updatedSession
+    return closedSession
   }
 
   public touch(sessionId: string, activePageId: string, currentUrl: string | null): Session | null {
