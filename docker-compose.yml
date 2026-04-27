@@ -20,8 +20,8 @@ services:
       - ${HOME}/.config/google-chrome:/home/node/.config/google-chrome
       - ./data/docker/runs:/data/runs
 
-  swagger:
-    container_name: browser-rc-swagger
+  browser-rc-docs:
+    container_name: browser-rc-docs
     environment:
       DEFAULT_MODEL_RENDERING: model
       SWAGGER_JSON: /openapi.yaml
