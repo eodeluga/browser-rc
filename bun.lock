@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "my-stagehand-app",
+      "name": "browser-rc",
       "dependencies": {
         "dotenv": "^16.4.7",
         "fastify": "^5.6.1",

@@ -61,7 +61,7 @@ server.get('/health', (_request: FastifyRequest, reply: FastifyReply): void => {
     data: {
       host: browserConfig.httpHost,
       port: browserConfig.httpPort,
-      service: 'my-stagehand-app',
+      service: 'browser-rc',
       wsPath: '/ws',
     },
     error: null,
