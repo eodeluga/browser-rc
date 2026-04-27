@@ -38,3 +38,57 @@ test('BrowserConfigService uses CHROME_EXECUTABLE_PATH when env variable is set'
     }
   }
 })
+
+test('BrowserConfigService defaults HTTP port to 3001 when env variable is absent', () => {
+  const originalHttpPort = process.env.HTTP_PORT
+  delete process.env.HTTP_PORT
+
+  try {
+    const browserConfigService = new BrowserConfigService()
+    const browserConfig = browserConfigService.getConfig()
+
+    assert.equal(browserConfig.httpPort, 3001)
+  } finally {
+    if (originalHttpPort === undefined) {
+      delete process.env.HTTP_PORT
+    } else {
+      process.env.HTTP_PORT = originalHttpPort
+    }
+  }
+})
+
+test('BrowserConfigService uses HTTP_PORT when env variable is valid', () => {
+  const originalHttpPort = process.env.HTTP_PORT
+  process.env.HTTP_PORT = '3017'
+
+  try {
+    const browserConfigService = new BrowserConfigService()
+    const browserConfig = browserConfigService.getConfig()
+
+    assert.equal(browserConfig.httpPort, 3017)
+  } finally {
+    if (originalHttpPort === undefined) {
+      delete process.env.HTTP_PORT
+    } else {
+      process.env.HTTP_PORT = originalHttpPort
+    }
+  }
+})
+
+test('BrowserConfigService falls back to 3001 when HTTP_PORT env variable is invalid', () => {
+  const originalHttpPort = process.env.HTTP_PORT
+  process.env.HTTP_PORT = 'not-a-number'
+
+  try {
+    const browserConfigService = new BrowserConfigService()
+    const browserConfig = browserConfigService.getConfig()
+
+    assert.equal(browserConfig.httpPort, 3001)
+  } finally {
+    if (originalHttpPort === undefined) {
+      delete process.env.HTTP_PORT
+    } else {
+      process.env.HTTP_PORT = originalHttpPort
+    }
+  }
+})
