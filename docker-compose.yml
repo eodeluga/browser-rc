@@ -5,13 +5,13 @@ services:
       dockerfile: Dockerfile
     container_name: browser-rc
     environment:
-      HTTP_PORT: '${HTTP_PORT}'
+      HTTP_PORT: '${HTTP_PORT:-3001}'
     expose:
       - '${HTTP_PORT:-3001}'
     networks:
       - browser-rc-access
     ports:
-      - '${HTTP_PORT:-3001}:3001'
+      - '${HTTP_PORT:-3001}:${HTTP_PORT:-3001}'
     restart: unless-stopped
     shm_size: 1gb
     stdin_open: true

@@ -31,11 +31,10 @@ Runtime variables used by code (local defaults):
 Container defaults (defined in `Dockerfile`):
 - `CHROME_USER_DATA_DIR=/home/node/.config/google-chrome`
 - `HTTP_HOST=0.0.0.0`
-- `HTTP_PORT=3001`
 - `OUTPUT_BASE_DIR=/data/runs`
 
 Compose overrides:
-- `HTTP_PORT` sets host published port with `"${HTTP_PORT:-3001}:3001"`
+- `HTTP_PORT` is injected into the container and used for dynamic mapping with `"${HTTP_PORT:-3001}:${HTTP_PORT:-3001}"`
 
 ## Run
 
