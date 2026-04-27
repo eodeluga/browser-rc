@@ -52,6 +52,7 @@ class JobRunnerService {
     this.artifactService.appendJobLog(jobId, 'Job queued for execution')
 
     let activeSessionId: string | null = null
+    let createdSessionId: string | null = null
     let shouldStopTrace = false
     let tracePath: string | null = null
 
@@ -62,12 +63,13 @@ class JobRunnerService {
         throw new Error(`Session ${existingSessionId} not found`)
       }
 
-      const ensuredSession = existingSessionId
+      let ensuredSession = existingSessionId
         ? this.browserManagerService.getSession(existingSessionId)
-        : await this.browserManagerService.createSession()
+        : null
 
       if (!ensuredSession) {
-        throw new Error('Unable to create or resolve session for job')
+        ensuredSession = await this.browserManagerService.createSession()
+        createdSessionId = ensuredSession.sessionId
       }
 
       const sessionId = ensuredSession.sessionId
@@ -195,6 +197,14 @@ class JobRunnerService {
         this.artifactService.appendJobLog(jobId, 'Playwright trace finalised', traceStopped ? 'info' : 'warn', {
           activeSessionId,
           tracePath,
+        })
+      }
+
+      if (createdSessionId) {
+        const closedSession = await this.browserManagerService.closeSession(createdSessionId)
+
+        this.artifactService.appendJobLog(jobId, 'Job-created session finalised', closedSession ? 'info' : 'warn', {
+          createdSessionId,
         })
       }
     }

@@ -5,6 +5,7 @@ import { chromium, type BrowserContext, type Page } from 'playwright'
 import type { Session } from '../contracts/session.schema.js'
 import { SessionRegistryService } from '../sessions/session-registry.service.js'
 import type { BrowserConfig } from './browser-config.service.js'
+import { ProfileLockCleanupService } from './profile-lock-cleanup.service.js'
 
 interface ManagedSession {
   page: Page
@@ -18,8 +19,23 @@ class BrowserManagerService {
 
   public constructor(
     private readonly browserConfig: BrowserConfig,
-    private readonly sessionRegistryService: SessionRegistryService
+    private readonly sessionRegistryService: SessionRegistryService,
+    private readonly profileLockCleanupService: ProfileLockCleanupService = new ProfileLockCleanupService()
   ) {}
+
+  private async cleanupProfileLockState(): Promise<void> {
+    if (this.managedSessions.size > 0) {
+      return
+    }
+
+    if (this.context) {
+      await this.context.close()
+      this.context = null
+    }
+
+    this.traceSessionId = null
+    this.profileLockCleanupService.removeLockFiles(this.browserConfig.chromeUserDataDir)
+  }
 
   private async ensureContext(): Promise<BrowserContext> {
     if (this.context) {
@@ -27,7 +43,6 @@ class BrowserManagerService {
     }
 
     this.context = await chromium.launchPersistentContext(this.browserConfig.chromeUserDataDir, {
-      args: [`--profile-directory=${this.browserConfig.chromeProfileDirectory}`],
       headless: false,
       ...(this.browserConfig.chromeExecutablePath
         ? {
@@ -43,45 +58,63 @@ class BrowserManagerService {
     return this.managedSessions.get(sessionId) ?? null
   }
 
+  private async runWithProfileLockCleanupInternal<ReturnType>(
+    browserAction: (() => Promise<ReturnType>)
+  ): Promise<ReturnType> {
+    try {
+      return await browserAction()
+    } finally {
+      try {
+        await this.cleanupProfileLockState()
+      } catch (error: unknown) {
+        console.error('Failed to cleanup Chrome profile lock files', error)
+      }
+    }
+  }
+
   public attachClient(sessionId: string, attachedClientId: string): Session | null {
     return this.sessionRegistryService.attachClient(sessionId, attachedClientId)
   }
 
   public async closeSession(sessionId: string): Promise<Session | null> {
-    const managedSession = this.getManagedSession(sessionId)
+    return await this.runWithProfileLockCleanupInternal(async () => {
+      const managedSession = this.getManagedSession(sessionId)
 
-    if (!managedSession) {
-      return null
-    }
+      if (!managedSession) {
+        return null
+      }
 
-    if (this.traceSessionId === sessionId) {
-      this.traceSessionId = null
-    }
+      if (this.traceSessionId === sessionId) {
+        this.traceSessionId = null
+      }
 
-    await managedSession.page.close()
-    this.managedSessions.delete(sessionId)
+      await managedSession.page.close()
+      this.managedSessions.delete(sessionId)
 
-    return this.sessionRegistryService.markClosed(sessionId)
+      return this.sessionRegistryService.markClosed(sessionId)
+    })
   }
 
   public async createSession(url?: string): Promise<Session> {
-    const context = await this.ensureContext()
-    const page = await context.newPage()
-    const pageId = crypto.randomUUID()
-    const session = this.sessionRegistryService.create(pageId, url ?? null)
+    return await this.runWithProfileLockCleanupInternal(async () => {
+      const context = await this.ensureContext()
+      const page = await context.newPage()
+      const pageId = crypto.randomUUID()
+      const session = this.sessionRegistryService.create(pageId, url ?? null)
 
-    this.managedSessions.set(session.sessionId, {
-      page,
-      pageId,
+      this.managedSessions.set(session.sessionId, {
+        page,
+        pageId,
+      })
+
+      if (!url) {
+        return session
+      }
+
+      await page.goto(url, { waitUntil: 'domcontentloaded' })
+
+      return this.sessionRegistryService.touch(session.sessionId, pageId, page.url()) ?? session
     })
-
-    if (!url) {
-      return session
-    }
-
-    await page.goto(url, { waitUntil: 'domcontentloaded' })
-
-    return this.sessionRegistryService.touch(session.sessionId, pageId, page.url()) ?? session
   }
 
   public getPage(sessionId: string): Page | null {
@@ -103,81 +136,95 @@ class BrowserManagerService {
   }
 
   public async navigate(sessionId: string, url: string): Promise<Session | null> {
-    const managedSession = this.getManagedSession(sessionId)
+    return await this.runWithProfileLockCleanupInternal(async () => {
+      const managedSession = this.getManagedSession(sessionId)
 
-    if (!managedSession) {
-      return null
-    }
+      if (!managedSession) {
+        return null
+      }
 
-    await managedSession.page.goto(url, { waitUntil: 'domcontentloaded' })
+      await managedSession.page.goto(url, { waitUntil: 'domcontentloaded' })
 
-    return this.sessionRegistryService.touch(sessionId, managedSession.pageId, managedSession.page.url())
+      return this.sessionRegistryService.touch(sessionId, managedSession.pageId, managedSession.page.url())
+    })
+  }
+
+  public async runWithProfileLockCleanup<ReturnType>(browserAction: (() => Promise<ReturnType>)): Promise<ReturnType> {
+    return await this.runWithProfileLockCleanupInternal(browserAction)
   }
 
   public async shutdown(): Promise<void> {
-    if (!this.context) {
-      return
-    }
+    await this.runWithProfileLockCleanupInternal(async () => {
+      if (!this.context) {
+        return
+      }
 
-    await this.context.close()
-    this.context = null
-    this.managedSessions.clear()
-    this.traceSessionId = null
+      await this.context.close()
+      this.context = null
+      this.managedSessions.clear()
+      this.traceSessionId = null
+    })
   }
 
   public async startTrace(sessionId: string): Promise<boolean> {
-    const managedSession = this.getManagedSession(sessionId)
+    return await this.runWithProfileLockCleanupInternal(async () => {
+      const managedSession = this.getManagedSession(sessionId)
 
-    if (!managedSession) {
-      return false
-    }
+      if (!managedSession) {
+        return false
+      }
 
-    if (this.traceSessionId === sessionId) {
+      if (this.traceSessionId === sessionId) {
+        return true
+      }
+
+      if (this.traceSessionId) {
+        return false
+      }
+
+      await managedSession.page.context().tracing.start({
+        screenshots: true,
+        snapshots: true,
+        sources: true,
+      })
+      this.traceSessionId = sessionId
+
       return true
-    }
-
-    if (this.traceSessionId) {
-      return false
-    }
-
-    await managedSession.page.context().tracing.start({
-      screenshots: true,
-      snapshots: true,
-      sources: true,
     })
-    this.traceSessionId = sessionId
-
-    return true
   }
 
   public async stopTrace(outputPath: string, sessionId: string): Promise<boolean> {
-    const managedSession = this.getManagedSession(sessionId)
+    return await this.runWithProfileLockCleanupInternal(async () => {
+      const managedSession = this.getManagedSession(sessionId)
 
-    if (!managedSession || this.traceSessionId !== sessionId) {
-      return false
-    }
+      if (!managedSession || this.traceSessionId !== sessionId) {
+        return false
+      }
 
-    await managedSession.page.context().tracing.stop({
-      path: outputPath,
+      await managedSession.page.context().tracing.stop({
+        path: outputPath,
+      })
+      this.traceSessionId = null
+
+      return true
     })
-    this.traceSessionId = null
-
-    return true
   }
 
   public async takeScreenshot(sessionId: string, fullPage: boolean, outputPath: string): Promise<Session | null> {
-    const managedSession = this.getManagedSession(sessionId)
+    return await this.runWithProfileLockCleanupInternal(async () => {
+      const managedSession = this.getManagedSession(sessionId)
 
-    if (!managedSession) {
-      return null
-    }
+      if (!managedSession) {
+        return null
+      }
 
-    await managedSession.page.screenshot({
-      fullPage,
-      path: outputPath,
+      await managedSession.page.screenshot({
+        fullPage,
+        path: outputPath,
+      })
+
+      return this.sessionRegistryService.touch(sessionId, managedSession.pageId, managedSession.page.url())
     })
-
-    return this.sessionRegistryService.touch(sessionId, managedSession.pageId, managedSession.page.url())
   }
 
   public touchSession(sessionId: string): Session | null {

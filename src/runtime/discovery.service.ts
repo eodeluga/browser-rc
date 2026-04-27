@@ -13,7 +13,7 @@ import { BrowserManagerService } from './browser-manager.service.js'
 import { PageService } from './page.service.js'
 
 interface DiscoveryServiceDependencies {
-  browserManagerService: Pick<BrowserManagerService, 'getPage' | 'touchSession'>
+  browserManagerService: Pick<BrowserManagerService, 'getPage' | 'runWithProfileLockCleanup' | 'touchSession'>
   pageService: Pick<PageService, 'snapshot'>
 }
 
@@ -214,41 +214,43 @@ class DiscoveryService {
   }
 
   public async discover(sessionId: string, options?: DiscoveryOptions): Promise<DiscoveryResult | null> {
-    const pageSnapshot = await this.dependencies.pageService.snapshot(sessionId)
+    return await this.dependencies.browserManagerService.runWithProfileLockCleanup(async () => {
+      const pageSnapshot = await this.dependencies.pageService.snapshot(sessionId)
 
-    if (!pageSnapshot) {
-      return null
-    }
+      if (!pageSnapshot) {
+        return null
+      }
 
-    const includeInteractiveElements = options?.includeInteractiveElements ?? true
-    const includeRepeatedContent = options?.includeRepeatedContent ?? true
-    const includeSummary = options?.includeSummary ?? true
+      const includeInteractiveElements = options?.includeInteractiveElements ?? true
+      const includeRepeatedContent = options?.includeRepeatedContent ?? true
+      const includeSummary = options?.includeSummary ?? true
 
-    const interactiveElements = await this.listInteractiveElements(includeInteractiveElements, sessionId)
+      const interactiveElements = await this.listInteractiveElements(includeInteractiveElements, sessionId)
 
-    if (!interactiveElements) {
-      return null
-    }
+      if (!interactiveElements) {
+        return null
+      }
 
-    const repeatedContentGroups = await this.detectRepeatedContent(includeRepeatedContent, sessionId)
+      const repeatedContentGroups = await this.detectRepeatedContent(includeRepeatedContent, sessionId)
 
-    if (!repeatedContentGroups) {
-      return null
-    }
+      if (!repeatedContentGroups) {
+        return null
+      }
 
-    const pageSummary = await this.summarisePage(includeSummary, interactiveElements, sessionId)
+      const pageSummary = await this.summarisePage(includeSummary, interactiveElements, sessionId)
 
-    if (!pageSummary) {
-      return null
-    }
+      if (!pageSummary) {
+        return null
+      }
 
-    this.dependencies.browserManagerService.touchSession(sessionId)
+      this.dependencies.browserManagerService.touchSession(sessionId)
 
-    return discoveryResultSchema.parse({
-      interactiveElements,
-      repeatedContentGroups,
-      snapshot: pageSnapshot,
-      summary: pageSummary,
+      return discoveryResultSchema.parse({
+        interactiveElements,
+        repeatedContentGroups,
+        snapshot: pageSnapshot,
+        summary: pageSummary,
+      })
     })
   }
 }

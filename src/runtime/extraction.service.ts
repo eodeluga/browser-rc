@@ -16,7 +16,7 @@ interface ExtractionResult {
 }
 
 interface ExtractionServiceDependencies {
-  browserManagerService: Pick<BrowserManagerService, 'getPage' | 'touchSession'>
+  browserManagerService: Pick<BrowserManagerService, 'getPage' | 'runWithProfileLockCleanup' | 'touchSession'>
 }
 
 interface SerializableFieldDefinition {
@@ -234,47 +234,49 @@ class ExtractionService {
     normalisationHints: NormalisationHints | undefined,
     sessionId: string
   ): Promise<ExtractionResult | null> {
-    const browserPage = this.dependencies.browserManagerService.getPage(sessionId)
+    return await this.dependencies.browserManagerService.runWithProfileLockCleanup(async () => {
+      const browserPage = this.dependencies.browserManagerService.getPage(sessionId)
 
-    if (!browserPage) {
-      return null
-    }
+      if (!browserPage) {
+        return null
+      }
 
-    if (!extractionRequest) {
-      const defaultExtraction = await browserPage.evaluate(() => {
+      if (!extractionRequest) {
+        const defaultExtraction = await browserPage.evaluate(() => {
+          return {
+            title: document.title,
+            url: window.location.href,
+          }
+        })
+
+        this.dependencies.browserManagerService.touchSession(sessionId)
+
         return {
-          title: document.title,
-          url: window.location.href,
+          data: defaultExtraction,
+          mode: 'object',
         }
-      })
+      }
 
-      this.dependencies.browserManagerService.touchSession(sessionId)
+      const parsedRequest = extractionRequestSchema.safeParse(extractionRequest)
+
+      if (!parsedRequest.success) {
+        throw new Error('Invalid extraction request payload')
+      }
+
+      const extractionMode = parsedRequest.data.mode
+      const extractedData = extractionMode === 'list'
+        ? await this.extractListData(parsedRequest.data, normalisationHints, sessionId)
+        : await this.extractObjectData(parsedRequest.data, normalisationHints, sessionId)
+
+      if (!extractedData) {
+        return null
+      }
 
       return {
-        data: defaultExtraction,
-        mode: 'object',
+        data: extractedData,
+        mode: extractionMode,
       }
-    }
-
-    const parsedRequest = extractionRequestSchema.safeParse(extractionRequest)
-
-    if (!parsedRequest.success) {
-      throw new Error('Invalid extraction request payload')
-    }
-
-    const extractionMode = parsedRequest.data.mode
-    const extractedData = extractionMode === 'list'
-      ? await this.extractListData(parsedRequest.data, normalisationHints, sessionId)
-      : await this.extractObjectData(parsedRequest.data, normalisationHints, sessionId)
-
-    if (!extractedData) {
-      return null
-    }
-
-    return {
-      data: extractedData,
-      mode: extractionMode,
-    }
+    })
   }
 
   public validateExtractedData(

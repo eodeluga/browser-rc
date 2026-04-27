@@ -6,27 +6,29 @@ class PageService {
   public constructor(private readonly browserManagerService: BrowserManagerService) {}
 
   public async goto(sessionId: string, url: string): Promise<Session | null> {
-    return this.browserManagerService.navigate(sessionId, url)
+    return await this.browserManagerService.navigate(sessionId, url)
   }
 
   public async snapshot(sessionId: string): Promise<PageSnapshot | null> {
-    const browserPage = this.browserManagerService.getPage(sessionId)
+    return await this.browserManagerService.runWithProfileLockCleanup(async () => {
+      const browserPage = this.browserManagerService.getPage(sessionId)
 
-    if (!browserPage) {
-      return null
-    }
+      if (!browserPage) {
+        return null
+      }
 
-    const html = await browserPage.content()
-    const title = await browserPage.title()
-    const url = browserPage.url()
+      const html = await browserPage.content()
+      const title = await browserPage.title()
+      const url = browserPage.url()
 
-    this.browserManagerService.touchSession(sessionId)
+      this.browserManagerService.touchSession(sessionId)
 
-    return {
-      html,
-      title,
-      url,
-    }
+      return {
+        html,
+        title,
+        url,
+      }
+    })
   }
 }
 

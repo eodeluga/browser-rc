@@ -14,49 +14,55 @@ class ActionService {
   ) {}
 
   public async click(selector: string, sessionId: string): Promise<Session | null> {
-    const browserPage = this.browserManagerService.getPage(sessionId)
+    return await this.browserManagerService.runWithProfileLockCleanup(async () => {
+      const browserPage = this.browserManagerService.getPage(sessionId)
 
-    if (!browserPage) {
-      return null
-    }
+      if (!browserPage) {
+        return null
+      }
 
-    await browserPage.locator(selector).first().click()
+      await browserPage.locator(selector).first().click()
 
-    return this.browserManagerService.touchSession(sessionId)
+      return this.browserManagerService.touchSession(sessionId)
+    })
   }
 
   public async screenshot(fullPage: boolean, sessionId: string): Promise<ScreenshotResult | null> {
-    const screenshotPath = this.artifactService.getScreenshotPath(sessionId)
-    const session = await this.browserManagerService.takeScreenshot(sessionId, fullPage, screenshotPath)
+    return await this.browserManagerService.runWithProfileLockCleanup(async () => {
+      const screenshotPath = this.artifactService.getScreenshotPath(sessionId)
+      const session = await this.browserManagerService.takeScreenshot(sessionId, fullPage, screenshotPath)
 
-    if (!session) {
-      return null
-    }
+      if (!session) {
+        return null
+      }
 
-    return {
-      path: screenshotPath,
-      session,
-    }
+      return {
+        path: screenshotPath,
+        session,
+      }
+    })
   }
 
   public async type(clearFirst: boolean, selector: string, sessionId: string, text: string): Promise<Session | null> {
-    const browserPage = this.browserManagerService.getPage(sessionId)
+    return await this.browserManagerService.runWithProfileLockCleanup(async () => {
+      const browserPage = this.browserManagerService.getPage(sessionId)
 
-    if (!browserPage) {
-      return null
-    }
+      if (!browserPage) {
+        return null
+      }
 
-    const browserLocator = browserPage.locator(selector).first()
+      const browserLocator = browserPage.locator(selector).first()
 
-    if (clearFirst) {
-      await browserLocator.fill(text)
+      if (clearFirst) {
+        await browserLocator.fill(text)
+
+        return this.browserManagerService.touchSession(sessionId)
+      }
+
+      await browserLocator.type(text)
 
       return this.browserManagerService.touchSession(sessionId)
-    }
-
-    await browserLocator.type(text)
-
-    return this.browserManagerService.touchSession(sessionId)
+    })
   }
 }
 
