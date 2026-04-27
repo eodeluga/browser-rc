@@ -9,6 +9,9 @@ test('ExtractionService validates object results against output schema', () => {
       getPage: () => {
         return null
       },
+      runWithProfileLockCleanup: <ReturnType>(browserAction: (() => Promise<ReturnType>)): Promise<ReturnType> => {
+        return browserAction()
+      },
       touchSession: () => {
         return null
       },
