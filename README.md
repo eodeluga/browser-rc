@@ -44,8 +44,8 @@ docker compose up --build
 ```
 
 This exposes the runtime on:
-- `http://localhost:3022` (or `http://localhost:${STAGEHAND_PORT}` if set)
-- `ws://localhost:3022/ws` (or `ws://localhost:${STAGEHAND_PORT}/ws` if set)
+- `http://localhost:3001` (or `http://localhost:${HTTP_PORT}` if set)
+- `ws://localhost:3001/ws` (or `ws://localhost:${HTTP_PORT}/ws` if set)
 - Swagger UI at `http://localhost:8081`
 
 Notes:
@@ -55,12 +55,6 @@ Notes:
 - run artefacts persist under `./data/docker/runs`
 - Swagger UI reads the spec from `./openapi/openapi.yaml`
 - this is intentionally unauthenticated for local PoC use
-
-If you want a different host port:
-
-```bash
-STAGEHAND_PORT=3010 docker compose up --build
-```
 
 ## Validate
 
