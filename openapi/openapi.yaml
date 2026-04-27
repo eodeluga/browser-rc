@@ -1,0 +1,1040 @@
+openapi: 3.0.3
+info:
+  title: Browser RC Control Plane API
+  version: 1.0.0
+  description: |
+    HTTP control plane for browser-rc.
+
+    This specification documents the Fastify HTTP API exposed by the runtime.
+    It also includes WebSocket message payload schemas used by the live control endpoint (`/ws`).
+servers:
+  - url: http://localhost:3022
+    description: Local Docker compose default
+  - url: http://127.0.0.1:3022
+    description: Local host binding
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Get runtime health status
+      tags:
+        - health
+      responses:
+        '200':
+          description: Runtime is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResult'
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List browser sessions
+      tags:
+        - sessions
+      responses:
+        '200':
+          description: Session list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResult'
+    post:
+      operationId: createSession
+      summary: Create a browser session
+      tags:
+        - sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResult'
+        '400':
+          description: Invalid create session request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResult'
+  /sessions/{sessionId}:
+    get:
+      operationId: getSession
+      summary: Get a session
+      tags:
+        - sessions
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResult'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+    delete:
+      operationId: closeSession
+      summary: Close a session
+      tags:
+        - sessions
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResult'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+  /sessions/{sessionId}/goto:
+    post:
+      operationId: gotoSession
+      summary: Navigate a session page
+      tags:
+        - sessions
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GotoSessionRequest'
+      responses:
+        '200':
+          description: Navigation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResult'
+        '400':
+          description: Invalid goto request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResult'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+  /sessions/{sessionId}/screenshot:
+    post:
+      operationId: screenshotSession
+      summary: Capture a screenshot for a session
+      tags:
+        - sessions
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScreenshotSessionRequest'
+      responses:
+        '200':
+          description: Screenshot captured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScreenshotResult'
+        '400':
+          description: Invalid screenshot request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResult'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+  /jobs:
+    post:
+      operationId: createJob
+      summary: Create a job
+      tags:
+        - jobs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJobRequest'
+      responses:
+        '202':
+          description: Job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResult'
+        '400':
+          description: Invalid create job request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResult'
+  /jobs/{jobId}:
+    get:
+      operationId: getJob
+      summary: Get a job
+      tags:
+        - jobs
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResult'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResult'
+  /ws:
+    get:
+      operationId: openWebSocketControlChannel
+      summary: Open WebSocket live control channel
+      description: |
+        Establishes a WebSocket connection for live browser control.
+
+        Client-to-server payloads must match `WsCommand`.
+        Server-to-client payloads must match `WsEvent`.
+      tags:
+        - websocket
+      responses:
+        '101':
+          description: Switching Protocols
+      x-websocket:
+        inboundMessage:
+          $ref: '#/components/schemas/WsCommand'
+        outboundMessage:
+          $ref: '#/components/schemas/WsEvent'
+        url: ws://localhost:3022/ws
+components:
+  parameters:
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+  schemas:
+    CreateJobRequest:
+      type: object
+      required:
+        - input
+        - type
+      properties:
+        input:
+          $ref: '#/components/schemas/ExtractJobInput'
+        type:
+          type: string
+          enum:
+            - extract
+    CreateSessionRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+    DiscoveryOptions:
+      type: object
+      properties:
+        includeInteractiveElements:
+          type: boolean
+        includeRepeatedContent:
+          type: boolean
+        includeSummary:
+          type: boolean
+    ErrorResult:
+      allOf:
+        - $ref: '#/components/schemas/ResultEnvelope'
+        - type: object
+          required:
+            - error
+            - ok
+            - timestamp
+          properties:
+            error:
+              type: string
+            ok:
+              type: boolean
+              enum:
+                - false
+    ExtractionField:
+      type: object
+      required:
+        - selector
+      properties:
+        all:
+          type: boolean
+        attribute:
+          type: string
+          minLength: 1
+        normalisation:
+          $ref: '#/components/schemas/NormalisationHints'
+        selector:
+          type: string
+          minLength: 1
+    ExtractionRequest:
+      oneOf:
+        - $ref: '#/components/schemas/ListExtractionRequest'
+        - $ref: '#/components/schemas/ObjectExtractionRequest'
+      discriminator:
+        propertyName: mode
+        mapping:
+          list: '#/components/schemas/ListExtractionRequest'
+          object: '#/components/schemas/ObjectExtractionRequest'
+    ExtractJobInput:
+      type: object
+      required:
+        - url
+      properties:
+        discovery:
+          $ref: '#/components/schemas/DiscoveryOptions'
+        extraction:
+          $ref: '#/components/schemas/ExtractionRequest'
+        normalisationHints:
+          $ref: '#/components/schemas/NormalisationHints'
+        schema:
+          $ref: '#/components/schemas/OutputValidation'
+        sessionId:
+          type: string
+          minLength: 1
+        takeScreenshot:
+          type: boolean
+        url:
+          type: string
+          format: uri
+    GotoSessionRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+    HealthData:
+      type: object
+      required:
+        - host
+        - port
+        - service
+        - wsPath
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        service:
+          type: string
+        wsPath:
+          type: string
+    HealthResult:
+      allOf:
+        - $ref: '#/components/schemas/ResultEnvelope'
+        - type: object
+          required:
+            - data
+            - error
+            - ok
+            - timestamp
+          properties:
+            data:
+              $ref: '#/components/schemas/HealthData'
+            error:
+              type: string
+              nullable: true
+    Job:
+      type: object
+      required:
+        - createdAt
+        - finishedAt
+        - jobId
+        - status
+        - type
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        jobId:
+          type: string
+          minLength: 1
+        result:
+          $ref: '#/components/schemas/ResultEnvelope'
+        status:
+          type: string
+          enum:
+            - completed
+            - failed
+            - queued
+            - running
+        type:
+          type: string
+          enum:
+            - extract
+    JobResult:
+      allOf:
+        - $ref: '#/components/schemas/ResultEnvelope'
+        - type: object
+          required:
+            - data
+            - error
+            - ok
+            - timestamp
+          properties:
+            data:
+              $ref: '#/components/schemas/Job'
+            error:
+              type: string
+              nullable: true
+    ListExtractionRequest:
+      type: object
+      required:
+        - fields
+        - itemSelector
+        - mode
+      properties:
+        fields:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ExtractionField'
+        itemSelector:
+          type: string
+          minLength: 1
+        mode:
+          type: string
+          enum:
+            - list
+    NormalisationHints:
+      type: object
+      properties:
+        collapseWhitespace:
+          type: boolean
+        lowercase:
+          type: boolean
+        trim:
+          type: boolean
+    ObjectExtractionRequest:
+      type: object
+      required:
+        - fields
+        - mode
+      properties:
+        fields:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ExtractionField'
+        mode:
+          type: string
+          enum:
+            - object
+    OutputFieldType:
+      type: string
+      enum:
+        - boolean
+        - number
+        - string
+    OutputValidation:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/OutputFieldType'
+    PageSnapshot:
+      type: object
+      required:
+        - html
+        - title
+        - url
+      properties:
+        html:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+    ResultEnvelope:
+      type: object
+      required:
+        - error
+        - ok
+        - timestamp
+      properties:
+        data:
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        ok:
+          type: boolean
+        timestamp:
+          type: string
+          format: date-time
+    ScreenshotData:
+      type: object
+      required:
+        - path
+        - session
+      properties:
+        path:
+          type: string
+        session:
+          $ref: '#/components/schemas/Session'
+    ScreenshotResult:
+      allOf:
+        - $ref: '#/components/schemas/ResultEnvelope'
+        - type: object
+          required:
+            - data
+            - error
+            - ok
+            - timestamp
+          properties:
+            data:
+              $ref: '#/components/schemas/ScreenshotData'
+            error:
+              type: string
+              nullable: true
+    ScreenshotSessionRequest:
+      type: object
+      properties:
+        fullPage:
+          type: boolean
+    Session:
+      type: object
+      required:
+        - activePageId
+        - attachedClientId
+        - createdAt
+        - currentUrl
+        - lastActivityAt
+        - sessionId
+        - status
+      properties:
+        activePageId:
+          type: string
+          nullable: true
+        attachedClientId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        currentUrl:
+          type: string
+          nullable: true
+        lastActivityAt:
+          type: string
+          format: date-time
+        sessionId:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum:
+            - active
+            - closed
+    SessionListData:
+      type: object
+      required:
+        - sessions
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+    SessionListResult:
+      allOf:
+        - $ref: '#/components/schemas/ResultEnvelope'
+        - type: object
+          required:
+            - data
+            - error
+            - ok
+            - timestamp
+          properties:
+            data:
+              $ref: '#/components/schemas/SessionListData'
+            error:
+              type: string
+              nullable: true
+    SessionResult:
+      allOf:
+        - $ref: '#/components/schemas/ResultEnvelope'
+        - type: object
+          required:
+            - data
+            - error
+            - ok
+            - timestamp
+          properties:
+            data:
+              $ref: '#/components/schemas/Session'
+            error:
+              type: string
+              nullable: true
+    ValidationErrorData:
+      type: object
+      properties:
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        formErrors:
+          type: array
+          items:
+            type: string
+    ValidationErrorResult:
+      allOf:
+        - $ref: '#/components/schemas/ResultEnvelope'
+        - type: object
+          required:
+            - data
+            - error
+            - ok
+            - timestamp
+          properties:
+            data:
+              $ref: '#/components/schemas/ValidationErrorData'
+            error:
+              type: string
+            ok:
+              type: boolean
+              enum:
+                - false
+    WsCommand:
+      oneOf:
+        - $ref: '#/components/schemas/WsCommandArtifactScreenshot'
+        - $ref: '#/components/schemas/WsCommandElementClick'
+        - $ref: '#/components/schemas/WsCommandElementType'
+        - $ref: '#/components/schemas/WsCommandPageGoto'
+        - $ref: '#/components/schemas/WsCommandPageSnapshot'
+        - $ref: '#/components/schemas/WsCommandSessionAttach'
+        - $ref: '#/components/schemas/WsCommandSessionClose'
+      discriminator:
+        propertyName: command
+        mapping:
+          artifact.screenshot: '#/components/schemas/WsCommandArtifactScreenshot'
+          element.click: '#/components/schemas/WsCommandElementClick'
+          element.type: '#/components/schemas/WsCommandElementType'
+          page.goto: '#/components/schemas/WsCommandPageGoto'
+          page.snapshot: '#/components/schemas/WsCommandPageSnapshot'
+          session.attach: '#/components/schemas/WsCommandSessionAttach'
+          session.close: '#/components/schemas/WsCommandSessionClose'
+    WsCommandArtifactScreenshot:
+      type: object
+      required:
+        - command
+        - sessionId
+      properties:
+        command:
+          type: string
+          enum:
+            - artifact.screenshot
+        fullPage:
+          type: boolean
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+    WsCommandElementClick:
+      type: object
+      required:
+        - command
+        - selector
+        - sessionId
+      properties:
+        command:
+          type: string
+          enum:
+            - element.click
+        requestId:
+          type: string
+          minLength: 1
+        selector:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+    WsCommandElementType:
+      type: object
+      required:
+        - command
+        - selector
+        - sessionId
+        - text
+      properties:
+        clearFirst:
+          type: boolean
+        command:
+          type: string
+          enum:
+            - element.type
+        requestId:
+          type: string
+          minLength: 1
+        selector:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+        text:
+          type: string
+    WsCommandPageGoto:
+      type: object
+      required:
+        - command
+        - sessionId
+        - url
+      properties:
+        command:
+          type: string
+          enum:
+            - page.goto
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+        url:
+          type: string
+          format: uri
+    WsCommandPageSnapshot:
+      type: object
+      required:
+        - command
+        - sessionId
+      properties:
+        command:
+          type: string
+          enum:
+            - page.snapshot
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+    WsCommandSessionAttach:
+      type: object
+      required:
+        - command
+        - sessionId
+      properties:
+        command:
+          type: string
+          enum:
+            - session.attach
+        controllerId:
+          type: string
+          minLength: 1
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+    WsCommandSessionClose:
+      type: object
+      required:
+        - command
+        - sessionId
+      properties:
+        command:
+          type: string
+          enum:
+            - session.close
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+    WsEvent:
+      oneOf:
+        - $ref: '#/components/schemas/WsEventActionCompleted'
+        - $ref: '#/components/schemas/WsEventActionStarted'
+        - $ref: '#/components/schemas/WsEventArtifactCreated'
+        - $ref: '#/components/schemas/WsEventError'
+        - $ref: '#/components/schemas/WsEventPageNavigated'
+        - $ref: '#/components/schemas/WsEventSessionAttached'
+        - $ref: '#/components/schemas/WsEventSessionCreated'
+      discriminator:
+        propertyName: event
+        mapping:
+          action.completed: '#/components/schemas/WsEventActionCompleted'
+          action.started: '#/components/schemas/WsEventActionStarted'
+          artifact.created: '#/components/schemas/WsEventArtifactCreated'
+          error: '#/components/schemas/WsEventError'
+          page.navigated: '#/components/schemas/WsEventPageNavigated'
+          session.attached: '#/components/schemas/WsEventSessionAttached'
+          session.created: '#/components/schemas/WsEventSessionCreated'
+    WsEventActionCompleted:
+      type: object
+      required:
+        - error
+        - event
+        - ok
+        - timestamp
+      properties:
+        data: {}
+        error:
+          type: string
+          nullable: true
+        event:
+          type: string
+          enum:
+            - action.completed
+        ok:
+          type: boolean
+          enum:
+            - true
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+        timestamp:
+          type: string
+          format: date-time
+    WsEventActionStarted:
+      type: object
+      required:
+        - data
+        - error
+        - event
+        - ok
+        - timestamp
+      properties:
+        data:
+          type: object
+          required:
+            - command
+          properties:
+            command:
+              type: string
+              enum:
+                - artifact.screenshot
+                - element.click
+                - element.type
+                - page.goto
+                - page.snapshot
+                - session.attach
+                - session.close
+        error:
+          type: string
+          nullable: true
+        event:
+          type: string
+          enum:
+            - action.started
+        ok:
+          type: boolean
+          enum:
+            - true
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+        timestamp:
+          type: string
+          format: date-time
+    WsEventArtifactCreated:
+      type: object
+      required:
+        - data
+        - error
+        - event
+        - ok
+        - timestamp
+      properties:
+        data:
+          $ref: '#/components/schemas/ScreenshotData'
+        error:
+          type: string
+          nullable: true
+        event:
+          type: string
+          enum:
+            - artifact.created
+        ok:
+          type: boolean
+          enum:
+            - true
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+        timestamp:
+          type: string
+          format: date-time
+    WsEventError:
+      type: object
+      required:
+        - error
+        - event
+        - ok
+        - timestamp
+      properties:
+        error:
+          type: string
+        event:
+          type: string
+          enum:
+            - error
+        ok:
+          type: boolean
+          enum:
+            - false
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+        timestamp:
+          type: string
+          format: date-time
+    WsEventPageNavigated:
+      type: object
+      required:
+        - data
+        - error
+        - event
+        - ok
+        - timestamp
+      properties:
+        data:
+          $ref: '#/components/schemas/Session'
+        error:
+          type: string
+          nullable: true
+        event:
+          type: string
+          enum:
+            - page.navigated
+        ok:
+          type: boolean
+          enum:
+            - true
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+        timestamp:
+          type: string
+          format: date-time
+    WsEventSessionAttached:
+      type: object
+      required:
+        - data
+        - error
+        - event
+        - ok
+        - timestamp
+      properties:
+        data:
+          $ref: '#/components/schemas/Session'
+        error:
+          type: string
+          nullable: true
+        event:
+          type: string
+          enum:
+            - session.attached
+        ok:
+          type: boolean
+          enum:
+            - true
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+        timestamp:
+          type: string
+          format: date-time
+    WsEventSessionCreated:
+      type: object
+      required:
+        - data
+        - error
+        - event
+        - ok
+        - timestamp
+      properties:
+        data:
+          $ref: '#/components/schemas/Session'
+        error:
+          type: string
+          nullable: true
+        event:
+          type: string
+          enum:
+            - session.created
+        ok:
+          type: boolean
+          enum:
+            - true
+        requestId:
+          type: string
+          minLength: 1
+        sessionId:
+          type: string
+          minLength: 1
+        timestamp:
+          type: string
+          format: date-time
