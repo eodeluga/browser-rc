@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import os from 'node:os'
+import path from 'node:path'
 import test from 'node:test'
 
 import { BrowserConfigService } from '../runtime/browser-config.service.js'
@@ -35,6 +37,42 @@ test('BrowserConfigService uses CHROME_EXECUTABLE_PATH when env variable is set'
       delete process.env.CHROME_EXECUTABLE_PATH
     } else {
       process.env.CHROME_EXECUTABLE_PATH = originalChromeExecutablePath
+    }
+  }
+})
+
+test('BrowserConfigService defaults CHROME_PROFILE_DIR when env variable is absent', () => {
+  const originalChromeProfileDir = process.env.CHROME_PROFILE_DIR
+  delete process.env.CHROME_PROFILE_DIR
+
+  try {
+    const browserConfigService = new BrowserConfigService()
+    const browserConfig = browserConfigService.getConfig()
+
+    assert.equal(browserConfig.chromeProfileDir, path.join(os.homedir(), '.config/google-chrome', 'Default'))
+  } finally {
+    if (originalChromeProfileDir === undefined) {
+      delete process.env.CHROME_PROFILE_DIR
+    } else {
+      process.env.CHROME_PROFILE_DIR = originalChromeProfileDir
+    }
+  }
+})
+
+test('BrowserConfigService uses CHROME_PROFILE_DIR when env variable is set', () => {
+  const originalChromeProfileDir = process.env.CHROME_PROFILE_DIR
+  process.env.CHROME_PROFILE_DIR = '/tmp/chrome-profile/Profile 3'
+
+  try {
+    const browserConfigService = new BrowserConfigService()
+    const browserConfig = browserConfigService.getConfig()
+
+    assert.equal(browserConfig.chromeProfileDir, '/tmp/chrome-profile/Profile 3')
+  } finally {
+    if (originalChromeProfileDir === undefined) {
+      delete process.env.CHROME_PROFILE_DIR
+    } else {
+      process.env.CHROME_PROFILE_DIR = originalChromeProfileDir
     }
   }
 })

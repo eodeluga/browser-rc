@@ -10,16 +10,17 @@ import { SessionRegistryService } from '../sessions/session-registry.service.js'
 
 class ProfileLockCleanupServiceStub extends ProfileLockCleanupService {
   public cleanupCallCount = 0
-  public lastChromeUserDataDir: string | null = null
+  public lastChromeProfileDir: string | null = null
 
-  public override removeLockFiles(chromeUserDataDir: string): void {
+  public override removeLockFiles(chromeProfileDir: string): void {
     this.cleanupCallCount += 1
-    this.lastChromeUserDataDir = chromeUserDataDir
+    this.lastChromeProfileDir = chromeProfileDir
   }
 }
 
 test('ProfileLockCleanupService removes Singleton lock files', () => {
   const chromeUserDataDir = path.join('.agents', 'tmp-profile-lock-cleanup-service-test')
+  const chromeProfileDir = path.join(chromeUserDataDir, 'Profile 1')
 
   if (fs.existsSync(chromeUserDataDir)) {
     fs.rmSync(chromeUserDataDir, {
@@ -44,7 +45,7 @@ test('ProfileLockCleanupService removes Singleton lock files', () => {
 
   const profileLockCleanupService = new ProfileLockCleanupService()
 
-  profileLockCleanupService.removeLockFiles(chromeUserDataDir)
+  profileLockCleanupService.removeLockFiles(chromeProfileDir)
 
   assert.equal(fs.existsSync(singletonCookiePath), false)
   assert.equal(fs.existsSync(singletonLockPath), false)
@@ -56,7 +57,7 @@ test('BrowserManagerService runs profile lock cleanup after action success and f
   const profileLockCleanupServiceStub = new ProfileLockCleanupServiceStub()
   const browserConfig: BrowserConfig = {
     chromeExecutablePath: undefined,
-    chromeUserDataDir: '/tmp/chrome-user-data',
+    chromeProfileDir: '/tmp/chrome-user-data/Profile 1',
     httpHost: '127.0.0.1',
     httpPort: 3001,
     outputBaseDir: './runs',
@@ -73,7 +74,7 @@ test('BrowserManagerService runs profile lock cleanup after action success and f
 
   assert.equal(successfulResult, 'ok')
   assert.equal(profileLockCleanupServiceStub.cleanupCallCount, 1)
-  assert.equal(profileLockCleanupServiceStub.lastChromeUserDataDir, '/tmp/chrome-user-data')
+  assert.equal(profileLockCleanupServiceStub.lastChromeProfileDir, '/tmp/chrome-user-data/Profile 1')
 
   await assert.rejects(() => {
     return browserManagerService.runWithProfileLockCleanup(() => {

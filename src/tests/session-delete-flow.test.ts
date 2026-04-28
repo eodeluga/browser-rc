@@ -11,8 +11,8 @@ interface BrowserManagerServiceInternals {
 }
 
 class ProfileLockCleanupServiceStub extends ProfileLockCleanupService {
-  public override removeLockFiles(chromeUserDataDir: string): void {
-    void chromeUserDataDir
+  public override removeLockFiles(chromeProfileDir: string): void {
+    void chromeProfileDir
   }
 }
 
@@ -22,7 +22,7 @@ const createBrowserManagerService = (): {
 } => {
   const browserConfig: BrowserConfig = {
     chromeExecutablePath: undefined,
-    chromeUserDataDir: '/tmp/chrome-user-data',
+    chromeProfileDir: '/tmp/chrome-user-data/Profile 1',
     httpHost: '127.0.0.1',
     httpPort: 3001,
     outputBaseDir: './runs',
