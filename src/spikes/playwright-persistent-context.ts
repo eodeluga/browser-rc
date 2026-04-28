@@ -21,9 +21,12 @@ const ensureOutputDirectory = (): void => {
 
 const run = async (): Promise<void> => {
   ensureOutputDirectory()
+  const chromeProfileDirectory = path.basename(browserConfig.chromeProfileDir)
+  const chromeUserDataDir = path.dirname(browserConfig.chromeProfileDir)
 
-  const browserContext = await chromium.launchPersistentContext(browserConfig.chromeUserDataDir, {
+  const browserContext = await chromium.launchPersistentContext(chromeUserDataDir, {
     channel: 'chrome',
+    args: [`--profile-directory=${chromeProfileDirectory}`],
     ...(browserConfig.chromeExecutablePath
       ? {
           executablePath: browserConfig.chromeExecutablePath,

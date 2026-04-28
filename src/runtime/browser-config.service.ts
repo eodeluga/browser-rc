@@ -3,7 +3,7 @@ import os from 'node:os'
 
 interface BrowserConfig {
   chromeExecutablePath: string | undefined
-  chromeUserDataDir: string
+  chromeProfileDir: string
   httpHost: string
   httpPort: number
   outputBaseDir: string
@@ -12,7 +12,7 @@ interface BrowserConfig {
 class BrowserConfigService {
   public getConfig(): BrowserConfig {
     const chromeExecutablePath = process.env.CHROME_EXECUTABLE_PATH?.trim()
-    const chromeUserDataDir = process.env.CHROME_USER_DATA_DIR?.trim()
+    const chromeProfileDir = process.env.CHROME_PROFILE_DIR?.trim()
     const httpHost = process.env.HTTP_HOST?.trim()
     const outputBaseDir = process.env.OUTPUT_BASE_DIR?.trim()
     const parsedHttpPort = Number(process.env.HTTP_PORT ?? '3001')
@@ -22,7 +22,7 @@ class BrowserConfigService {
 
     const config: BrowserConfig = {
       chromeExecutablePath: chromeExecutablePath ? chromeExecutablePath : undefined,
-      chromeUserDataDir: chromeUserDataDir ? chromeUserDataDir : path.join(os.homedir(), '.config/google-chrome'),
+      chromeProfileDir: chromeProfileDir ? chromeProfileDir : path.join(os.homedir(), '.config/google-chrome', 'Default'),
       httpHost: httpHost ? httpHost : '127.0.0.1',
       httpPort,
       outputBaseDir: outputBaseDir ? outputBaseDir : './runs',

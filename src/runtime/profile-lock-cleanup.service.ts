@@ -8,10 +8,12 @@ class ProfileLockCleanupService {
     'SingletonSocket',
   ]
 
-  public removeLockFiles(chromeUserDataDir: string): void {
-    if (!chromeUserDataDir.trim()) {
+  public removeLockFiles(chromeProfileDir: string): void {
+    if (!chromeProfileDir.trim()) {
       return
     }
+
+    const chromeUserDataDir = path.dirname(chromeProfileDir)
 
     for (const lockFileName of this.lockFileNames) {
       const lockFilePath = path.join(chromeUserDataDir, lockFileName)

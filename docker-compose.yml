@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    user: '${BROWSER_RC_UID:-1000}:${BROWSER_RC_GID:-1000}'
     container_name: browser-rc
     environment:
       HTTP_PORT: '${HTTP_PORT:-3001}'

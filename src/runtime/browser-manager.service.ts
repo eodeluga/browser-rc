@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import path from 'node:path'
 
 import { chromium, type BrowserContext, type Page } from 'playwright'
 
@@ -34,7 +35,7 @@ class BrowserManagerService {
     }
 
     this.traceSessionId = null
-    this.profileLockCleanupService.removeLockFiles(this.browserConfig.chromeUserDataDir)
+    this.profileLockCleanupService.removeLockFiles(this.browserConfig.chromeProfileDir)
   }
 
   private async ensureContext(): Promise<BrowserContext> {
@@ -42,7 +43,11 @@ class BrowserManagerService {
       return this.context
     }
 
-    this.context = await chromium.launchPersistentContext(this.browserConfig.chromeUserDataDir, {
+    const chromeProfileDirectory = path.basename(this.browserConfig.chromeProfileDir)
+    const chromeUserDataDir = path.dirname(this.browserConfig.chromeProfileDir)
+
+    this.context = await chromium.launchPersistentContext(chromeUserDataDir, {
+      args: [`--profile-directory=${chromeProfileDirectory}`],
       headless: false,
       ...(this.browserConfig.chromeExecutablePath
         ? {

@@ -5,7 +5,7 @@ Local browser automation runtime using Playwright with a Fastify HTTP control pl
 ## Current scope
 
 This refactor now provides:
-- persistent Chrome profile reuse (single user data directory, `Default` profile)
+- persistent Chrome profile reuse (single configured profile directory)
 - in-memory browser session registry
 - transport-agnostic runtime services for page and action operations
 - HTTP control endpoints for health, sessions, and jobs
@@ -23,13 +23,13 @@ The sample file is intentionally minimal for Docker usage; additional runtime va
 
 Runtime variables used by code (local defaults):
 - `CHROME_EXECUTABLE_PATH` (optional; default unset)
-- `CHROME_USER_DATA_DIR` (default: `${HOME}/.config/google-chrome`)
+- `CHROME_PROFILE_DIR` (default: `${HOME}/.config/google-chrome/Default`)
 - `HTTP_HOST` (default: `127.0.0.1`)
 - `HTTP_PORT` (default: `3001`)
 - `OUTPUT_BASE_DIR` (default: `./runs`)
 
 Container defaults (defined in `Dockerfile`):
-- `CHROME_USER_DATA_DIR=/home/node/.config/google-chrome`
+- `CHROME_PROFILE_DIR=/home/node/.config/google-chrome/Default`
 - `HTTP_HOST=0.0.0.0`
 - `OUTPUT_BASE_DIR=/data/runs`
 
@@ -124,6 +124,6 @@ Emitted events:
 
 ## Notes
 
-- The runtime launches Chrome with a persistent Playwright context using the configured user data directory and `Default` profile.
+- The runtime launches Chrome with a persistent Playwright context using `CHROME_PROFILE_DIR`.
 - Session and action logic is shared across HTTP and WebSocket transports.
 - Job execution writes debuggable run artefacts including request/result payloads, logs, HTML dump, screenshot files, and Playwright trace output.
